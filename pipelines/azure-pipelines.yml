@@ -1,0 +1,98 @@
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - terraform/*
+
+pr: none
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  - name: serviceConnection
+    value: sc-azure-enterprise-platform # Azure DevOps service connection name
+  - name: subscriptionId
+    value: 32a5945b-da3d-48dd-acf7-f51a950dc4f4
+  - name: stateResourceGroup
+    value: rg-aep-tfstate-frc-001
+  - name: stateStorageAccount
+    value: staeptfstatefrc001 # must be globally unique, 3-24 lowercase letters/numbers
+  - name: stateContainer
+    value: tfstate
+  - name: workingDir
+    value: $(System.DefaultWorkingDirectory)/terraform
+
+stages:
+  - stage: Plan
+    jobs:
+      - job: plan
+        steps:
+          - task: AzureCLI@2
+            displayName: Terraform init, validate, plan
+            inputs:
+              azureSubscription: $(serviceConnection)
+              scriptType: bash
+              scriptLocation: inlineScript
+              addSpnToEnvironment: true
+              workingDirectory: $(workingDir)
+              inlineScript: |
+                export ARM_CLIENT_ID="$servicePrincipalId"
+                export ARM_TENANT_ID="$tenantId"
+                export ARM_SUBSCRIPTION_ID="$(subscriptionId)"
+                export ARM_USE_OIDC=true
+                export ARM_OIDC_TOKEN="$idToken"
+                terraform version
+                terraform fmt -check
+                terraform init -input=false \
+                  -backend-config="resource_group_name=$(stateResourceGroup)" \
+                  -backend-config="storage_account_name=$(stateStorageAccount)" \
+                  -backend-config="container_name=$(stateContainer)" \
+                  -backend-config="key=azure-enterprise-platform.tfstate" \
+                  -backend-config="use_azuread_auth=true"
+                terraform validate
+                terraform plan -input=false -out=tfplan
+
+          - publish: $(workingDir)/tfplan
+            artifact: tfplan
+            displayName: Publish plan
+
+  - stage: Apply
+    dependsOn: Plan
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      # Add approvals/checks to the "azure-platform-dev" environment in Azure DevOps
+      - deployment: apply
+        environment: azure-platform-dev
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+
+                - download: current
+                  artifact: tfplan
+
+                - task: AzureCLI@2
+                  displayName: Terraform apply
+                  inputs:
+                    azureSubscription: $(serviceConnection)
+                    scriptType: bash
+                    scriptLocation: inlineScript
+                    addSpnToEnvironment: true
+                    workingDirectory: $(workingDir)
+                    inlineScript: |
+                      export ARM_CLIENT_ID="$servicePrincipalId"
+                      export ARM_TENANT_ID="$tenantId"
+                      export ARM_SUBSCRIPTION_ID="$(subscriptionId)"
+                      export ARM_USE_OIDC=true
+                      export ARM_OIDC_TOKEN="$idToken"
+                      terraform init -input=false \
+                        -backend-config="resource_group_name=$(stateResourceGroup)" \
+                        -backend-config="storage_account_name=$(stateStorageAccount)" \
+                        -backend-config="container_name=$(stateContainer)" \
+                        -backend-config="key=azure-enterprise-platform.tfstate" \
+                        -backend-config="use_azuread_auth=true"
+                      terraform apply -input=false $(Pipeline.Workspace)/tfplan/tfplan
