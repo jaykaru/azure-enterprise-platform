@@ -14,7 +14,7 @@ pool:
 
 variables:
   - name: serviceConnection
-    value: sc-azure-enterprise-platform # Azure DevOps service connection name
+    value: sc-aep-dev # Azure DevOps service connection name
   - name: subscriptionId
     value: 32a5945b-da3d-48dd-acf7-f51a950dc4f4
   - name: stateResourceGroup
