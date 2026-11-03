@@ -5,6 +5,7 @@ trigger:
   paths:
     include:
       - terraform/*
+      - pipelines/*
 
 pr: none
 
@@ -22,6 +23,8 @@ variables:
     value: staeptfstatefrc001 # must be globally unique, 3-24 lowercase letters/numbers
   - name: environmentName
     value: dev # selects environments/<name>.tfvars and the <name>.tfstate state file
+  - name: terraformVersion
+    value: 1.13.3 # must satisfy required_version in terraform/providers.tf
   - name: stateContainer
     value: tfstate
   - name: workingDir
@@ -32,6 +35,12 @@ stages:
     jobs:
       - job: plan
         steps:
+          - bash: |
+              curl -fsSL -o tf.zip https://releases.hashicorp.com/terraform/$(terraformVersion)/terraform_$(terraformVersion)_linux_amd64.zip
+              sudo unzip -o tf.zip terraform -d /usr/local/bin
+              terraform version
+            displayName: Install Terraform $(terraformVersion)
+
           - task: AzureCLI@2
             displayName: Terraform init, validate, plan
             inputs:
@@ -73,6 +82,12 @@ stages:
             deploy:
               steps:
                 - checkout: self
+
+                - bash: |
+                    curl -fsSL -o tf.zip https://releases.hashicorp.com/terraform/$(terraformVersion)/terraform_$(terraformVersion)_linux_amd64.zip
+                    sudo unzip -o tf.zip terraform -d /usr/local/bin
+                    terraform version
+                  displayName: Install Terraform $(terraformVersion)
 
                 - download: current
                   artifact: tfplan

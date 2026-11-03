@@ -223,9 +223,11 @@ Then, every time:
 ```powershell
 terraform fmt -check
 terraform validate
-terraform plan  -var-file=environments/dev.tfvars
-terraform apply -var-file=environments/dev.tfvars
+terraform plan  "-var-file=environments/dev.tfvars"
+terraform apply "-var-file=environments/dev.tfvars"
 ```
+
+> **PowerShell tip:** put arguments that contain a dot in quotes, e.g. `"-var-file=environments/dev.tfvars"` or `"-out=bootstrap.tfplan"`. Without quotes, Windows PowerShell can split the argument at the dot, and Terraform fails with `Too many command line arguments`.
 
 `use_azuread_auth=true` means you sign in with your Azure identity rather than storage keys. Your identity needs the **Storage Blob Data Contributor** role on the state storage account (being Owner is not enough for blob data).
 
@@ -259,6 +261,7 @@ push to main ──▶ Stage 1: PLAN ──▶ (approval) ──▶ Stage 2: APP
 | `Backend initialization required` | `init` has not been run, or backend settings changed | Run `terraform init` with the `-backend-config` values (add `-reconfigure` if they changed) |
 | `storage account name already taken` | Names are globally unique | Pick a different `state_storage_account_name` |
 | `403 ... AuthorizationPermissionMismatch` on state | Missing blob data role | Assign **Storage Blob Data Contributor** on the state storage account |
+| `Too many command line arguments` (in PowerShell) | PowerShell split an argument like `-out=x.tfplan` at the dot | Quote it: `terraform plan "-out=x.tfplan"` |
 | Plan wants to create things that already exist | State file missing or wrong key | Check the `key`; import the resources if the state was lost |
 
 ---
