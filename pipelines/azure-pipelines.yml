@@ -20,6 +20,8 @@ variables:
     value: rg-aep-tfstate-frc-001
   - name: stateStorageAccount
     value: staeptfstatefrc001 # must be globally unique, 3-24 lowercase letters/numbers
+  - name: environmentName
+    value: dev # selects environments/<name>.tfvars and the <name>.tfstate state file
   - name: stateContainer
     value: tfstate
   - name: workingDir
@@ -50,10 +52,10 @@ stages:
                   -backend-config="resource_group_name=$(stateResourceGroup)" \
                   -backend-config="storage_account_name=$(stateStorageAccount)" \
                   -backend-config="container_name=$(stateContainer)" \
-                  -backend-config="key=azure-enterprise-platform.tfstate" \
+                  -backend-config="key=$(environmentName).tfstate" \
                   -backend-config="use_azuread_auth=true"
                 terraform validate
-                terraform plan -input=false -out=tfplan
+                terraform plan -input=false -var-file=environments/$(environmentName).tfvars -out=tfplan
 
           - publish: $(workingDir)/tfplan
             artifact: tfplan
@@ -93,6 +95,6 @@ stages:
                         -backend-config="resource_group_name=$(stateResourceGroup)" \
                         -backend-config="storage_account_name=$(stateStorageAccount)" \
                         -backend-config="container_name=$(stateContainer)" \
-                        -backend-config="key=azure-enterprise-platform.tfstate" \
+                        -backend-config="key=$(environmentName).tfstate" \
                         -backend-config="use_azuread_auth=true"
                       terraform apply -input=false $(Pipeline.Workspace)/tfplan/tfplan
