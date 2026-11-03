@@ -8,7 +8,7 @@ crash.*.log
 # Plans and local overrides
 *.tfplan
 *.tfvars
-!terraform/terraform.tfvars
+!terraform/environments/*.tfvars
 *_override.tf
 *_override.tf.json
 override.tf
